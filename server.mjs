@@ -10,7 +10,6 @@ const __dirname = path.dirname(__filename);
 
 app.use(express.static(__dirname));
 
-console.log("TSET TESTTET SETE")
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname,'index.html'));
 });

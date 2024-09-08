@@ -1,9 +1,21 @@
+
 document.addEventListener('DOMContentLoaded', main);
 const clientId = 'bf54e8ec17c246e7a7c4f9c50b0c3c9d';
 const redirectUri = 'http://localhost:3000/';
+let player;
 
 function main() {
     initializeEventListeners();
+
+    const intervalId = setInterval(() => {
+        try {
+            testAction(); 
+        } catch (error) {
+            console.error("An error occurred:", error);
+            clearInterval(intervalId);
+        }
+    }, 3000); 
+
 }
 
 function initializeEventListeners() {
@@ -27,9 +39,30 @@ function initializeEventListeners() {
     } else {
         console.error('Test2 button not found');
     }
+
+    const rButton = document.getElementById('reset');
+    if (rButton) {
+        rButton.addEventListener('click', reset);
+    } else {
+        console.error('Test button not found');
+    }
+    const pButton = document.getElementById('pause');
+    if (pButton) {
+        pButton.addEventListener('click', pause);
+    } else {
+        console.error('Test button not found');
+    }
+} 
+
+async function  loginAction () {
+    await loginHelper()
+    console.log("ARE WE BACK")
+ 
+
+
 }
 
-async function loginAction() {      // work on getting album back...
+async function loginHelper() {
     console.log("Logging in");
     const codeVerifier = generateRandomString(64);
     const hashed = await sha256(codeVerifier);
@@ -51,9 +84,176 @@ async function loginAction() {      // work on getting album back...
 
     authUrl.search = new URLSearchParams(params).toString();
     window.location.href = authUrl.toString();
+
+
+
+}
+songMap = {  'USRC11901149' : [167000], // situations
+    'USUMG0000365' : [371000],  // black man
+    'USAR10200837' : [240000],   // cot damn
+    'USUYG1337329' : [195000], // over the limit
+    'USWB12204049' : [130000], // blackest in the room
+    'USBB40580818' : [260000], // respect
+    'USUYG1483972' : [240000], // mamas prime time
+    'ZZOPM1800719' : [0, 22000], // trippy
+    'USLF29800320' : [285000], // aquemini
+    'USRC11901148' : [192000], // fake name
+    'USRC19501751' : [0,52000] // glaciers of ice
+
+}
+async function  testAction () {
+    console.log("Test action");
+
+    const accessToken = localStorage.access_token;
+
+
+    const response = await fetch("https://api.spotify.com/v1/me/player", {
+        method: 'GET',
+        headers: {
+             
+            'Authorization': 'Bearer ' + accessToken,
+        },
+    });
+    
+    const data = await response.json();
+    //console.log("Data  ", data)
+    //console.log(data['item'])
+    updateSong(data)
+    code = data['item']['external_ids']['isrc']
+    console.log("CODE   ", code)
+    if (Object.keys(songMap).includes(code)) {
+        // console.log(`The song  `,data['item']['name'], ' is in the map' );
+        // console.log("TOTAL TIME :   " , data['item']['duration_ms'] )
+        // console.log(songMap[code][0])
+        // console.log("curr :  ", data['progress_ms'])
+        timeToSkip = songMap[code][0] - data['progress_ms']
+    //    console.log(songMap[code][1])
+        if (songMap[code][1] === undefined) {
+            console.log("TIME TO SKIP TO END :   " , timeToSkip)
+            if (timeToSkip < 0 ) {
+                testAction2()
+            }
+        }
+        else {
+            console.log("TIME TO SKIP TO END :   " , timeToSkip)
+            if (timeToSkip < 0  && timeToSkip > -5000) {
+                const response3 = await fetch("https://api.spotify.com/v1/me/player/seek?position_ms=" + songMap[code][1], {
+                    method: 'PUT',
+                    headers: {
+                         
+                        'Authorization': 'Bearer ' + accessToken,
+                    },
+                });
+            }
+        }
+
+    }
 }
 
-const getToken = async (code) => {
+window.addEventListener('load', handleAuthResponse);
+
+
+window.onSpotifyWebPlaybackSDKReady = () => {
+    console.log("Spotify Web Playback SDK is ready.");
+};
+
+async function updateSong(data) {
+    item = data['item']
+    console.log("CURRENT SONG:  " , item)
+    Songname = item['name']
+    currentSong = document.getElementById('currentSong')
+    console.log(currentSong)
+    console.log(Songname)
+    currentSong.innerText = Songname
+
+    const albumImages = data.item.album.images;
+    if (albumImages && albumImages.length > 0) {
+        const albumCoverUrl = albumImages[0].url;
+        console.log(albumCoverUrl);
+
+        const albumCoverDiv = document.getElementById('album-cover');
+        albumCoverDiv.innerHTML = `<img src="${albumCoverUrl}" alt="Album Cover" class="album-image" />`;
+    }
+
+
+}
+async function handleAuthResponse() {
+    console.log("Handling auth response");
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    
+    if (code) {
+        await getToken(code);
+
+        const token = localStorage.access_token;
+        console.log("TOKEN :  ", token)
+        player = new Spotify.Player({
+            name: 'Web Playback SDK Quick Start Player',
+            getOAuthToken: cb => { cb(token); }
+        });
+          
+
+
+
+        player.connect().then(success => {
+            if (success) {
+              console.log('The Web Playback SDK successfully connected to Spotify!');
+            } else {
+                console.log("somthing broke :(((")
+            }
+          })
+
+
+    }
+}
+
+
+async function  testAction2 () {
+    console.log("Test2 Actions")
+    console.log(localStorage.access_token)
+    accessToken = localStorage.access_token
+    albumIDforTesting = '6YUCc2RiXcEKS9ibuZxjt0'
+
+    const response = await fetch("https://api.spotify.com/v1/me/player/next", {
+        method: 'POST',
+        headers: {
+            
+            'Authorization': 'Bearer ' + accessToken,
+        },
+    });
+    
+    const response2 = await fetch("https://api.spotify.com/v1/me/player", {
+        method: 'GET',
+        headers: {
+             
+            'Authorization': 'Bearer ' + accessToken,
+        },
+    });
+    
+    const data = await response2.json();
+    updateSong(data)
+}
+
+const generateRandomString = (length) => {
+    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const values = crypto.getRandomValues(new Uint8Array(length));
+    return values.reduce((acc, x) => acc + possible[x % possible.length], "");
+  }
+  const sha256 = async (plain) => {
+    const encoder = new TextEncoder()
+    const data = encoder.encode(plain)
+    return window.crypto.subtle.digest('SHA-256', data)
+  }
+  const base64encode = (input) => {
+    return btoa(String.fromCharCode(...new Uint8Array(input)))
+      .replace(/=/g, '')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_');
+  }
+
+  const getToken = async (code) => {
+    console.log("REALLY ??")
     const tokenUrl = 'https://accounts.spotify.com/api/token';
     const codeVerifier = localStorage.getItem('code_verifier');
 
@@ -84,148 +284,76 @@ const getToken = async (code) => {
     return data;
 }
 
-const refreshToken = async () => {
-    const tokenUrl = 'https://accounts.spotify.com/api/token';
+async function reset() {
+    console.log("resetting")
+    getRefreshToken()   
+}
+const getRefreshToken = async () => {
+
+    // refresh token that has been previously stored
     const refreshToken = localStorage.getItem('refresh_token');
+    const url = "https://accounts.spotify.com/api/token";
+ 
+     const payload = {
+       method: 'POST',
+       headers: {
+         'Content-Type': 'application/x-www-form-urlencoded'
+       },
+       body: new URLSearchParams({
+         grant_type: 'refresh_token',
+         refresh_token: refreshToken,
+         client_id: clientId
+       }),
+     }
+     const body = await fetch(url, payload);
+     const response = await body.json();
+ 
+     localStorage.setItem('access_token', response.accessToken);
+     if (response.refreshToken) {
+       localStorage.setItem('refresh_token', response.refreshToken);
+     }
+   }
 
-    const payload = {
-        method: 'POST',
+async function pause() {
+    const accessToken = localStorage.access_token;
+    console.log("pausing")
+    const response2 = await fetch("https://api.spotify.com/v1/me/player", {
+        method: 'GET',
         headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-            client_id: clientId,
-            grant_type: 'refresh_token',
-            refresh_token: refreshToken,
-        }),
-    };
-
-    const response = await fetch(tokenUrl, payload);
-    const data = await response.json();
-
-    if (response.ok) {
-        localStorage.setItem('access_token', data.access_token);
-        localStorage.setItem('token_expiry', Date.now() + data.expires_in * 1000); // Update token expiry time
-    } else {
-        console.error('Failed to refresh token', data);
-    }
-    return data;
-}
-
-const getAccessToken = async () => {
-    const expiry = localStorage.getItem('token_expiry');
-    if (expiry && Date.now() > expiry) {
-        console.log('Access token expired. Refreshing token...');
-        await refreshToken();
-    }
-    return localStorage.getItem('access_token');
-}
-
-function generateRandomString(length) {
-    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let text = '';
-    for (let i = 0; i < length; i++) {
-        text += possible.charAt(Math.floor(Math.random() * possible.length));
-    }
-    return text;
-}
-
-async function sha256(plain) {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(plain);
-    return crypto.subtle.digest('SHA-256', data);
-}
-
-function base64encode(input) {
-    return btoa(String.fromCharCode(...new Uint8Array(input)))
-        .replace(/=/g, '')
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_');
-}
-
-async function testAction() {
-    console.log("Testing");
-    const storedToken = await getAccessToken();
-    if (storedToken) {
-        try {
-            const profile = await getUserProfile(storedToken);
-            console.log("Profile:", profile);
-        } catch (error) {
-            console.error('Error fetching profile:', error);
-        }
-    } else {
-        console.error('No access token found');
-    }
-}
-
-const getUserProfile = async (accessToken) => {
-    const response = await fetch("https://api.spotify.com/v1/me", {
-        headers: {
+             
             'Authorization': 'Bearer ' + accessToken,
         },
     });
+    
+    const data = await response2.json();
+    console.log("is playing?  " , data['is_playing'])
+    if (data['is_playing'] == false) {
+        console.log(" resume")
+        const pauseB = document.getElementById('pause');
 
-    const data = await response.json();
-    if (!response.ok) {
-        throw new Error(`${data.error.message}`);
-    }
-    return data;
-}
+        const response2 = await fetch("https://api.spotify.com/v1/me/player/play", {
+            method: 'PUT',
+            headers: {
+                 
+                'Authorization': 'Bearer ' + accessToken,
+            },
+        });
 
-async function testAction2() {
-    console.log("Testing player");
-    const storedToken = await getAccessToken();
-    if (storedToken) {
-        try {
-            const data = await getCurrentPlayer(storedToken);
-            console.log("Player data:", data);
-        } catch (error) {
-            console.error('Error fetching player data:', error);
-        }
+
+
+        pauseB.innerText = 'Pause'
     } else {
-        console.error('No access token found');
+        console.log(" pausing")
+        const pauseB = document.getElementById('pause');
+
+        const response2 = await fetch("https://api.spotify.com/v1/me/player/pause", {
+            method: 'PUT',
+            headers: {
+                 
+                'Authorization': 'Bearer ' + accessToken,
+            },
+        });
+        pauseB.innerText = 'Resume'
+
     }
 }
-
-const getCurrentPlayer = async (accessToken) => {
-    const response = await fetch("https://api.spotify.com/v1/me/player", {
-        headers: {
-            'Authorization': 'Bearer ' + accessToken,
-        },
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-        throw new Error(`${data.error.message}`);
-    }
-    return data;
-}
-
-// window.onSpotifyWebPlaybackSDKReady = () => {
-//     getAccessToken().then(storedToken => {
-//         if (storedToken) {
-//             const player = new Spotify.Player({
-//                 name: 'Web Playback SDK Quick Start Player',
-//                 getOAuthToken: cb => { cb(storedToken); },
-//                 volume: 0.5
-//             });
-
-//             player.addListener('initialization_error', ({ message }) => console.error('Initialization Error:', message));
-//             player.addListener('authentication_error', ({ message }) => console.error('Authentication Error:', message));
-//             player.addListener('account_error', ({ message }) => console.error('Account Error:', message));
-//             player.addListener('playback_error', ({ message }) => console.error('Playback Error:', message));
-
-//             player.addListener('ready', ({ device_id }) => {
-//                 console.log('Ready with Device ID:', device_id);
-//             });
-
-//             player.addListener('not_ready', ({ device_id }) => {
-//                 console.log('Device has gone offline:', device_id);
-//             });
-
-//             player.connect();
-//         } else {
-//             console.error('No access token found');
-//         }
-//     });
-// }
