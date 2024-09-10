@@ -5,8 +5,14 @@ const redirectUri = 'http://localhost:3000/';
 let player;
 
 function main() {
+    console.log("WHAT ARE YOU DOING THIS?")
+    document.cookie = "skip=yes";
+    const albumCoverDiv = document.getElementById('album-cover');
+    placeholderImage = 'https://th.bing.com/th/id/OIP.cGNrZQMZZByzXDowH--mAAHaEK?w=309&h=180&c=7&r=0&o=5&pid=1.7'
+    albumCoverDiv.innerHTML = `<img src="${placeholderImage}" alt="Album Cover" class="album-image" />`;
     initializeEventListeners();
-
+    
+  
     const intervalId = setInterval(() => {
         try {
             testAction(); 
@@ -49,6 +55,12 @@ function initializeEventListeners() {
     const pButton = document.getElementById('pause');
     if (pButton) {
         pButton.addEventListener('click', pause);
+    } else {
+        console.error('Test button not found');
+    }
+    const sButton = document.getElementById('skipskit');
+    if (sButton) {
+        sButton.addEventListener('click', skipskit);
     } else {
         console.error('Test button not found');
     }
@@ -98,7 +110,13 @@ songMap = {  'USRC11901149' : [167000], // situations
     'ZZOPM1800719' : [0, 22000], // trippy
     'USLF29800320' : [285000], // aquemini
     'USRC11901148' : [192000], // fake name
-    'USRC19501751' : [0,52000] // glaciers of ice
+    'USRC19501751' : [0,52000], // glaciers of ice
+    'USSM19604190' : [0, 60000], // black jesus
+    'USNPD0900955' : [0, 57000], // Canal Street raekwon
+    'USQX91500710' : [344000], // 2Seater
+    'USRC19305620' : [0,20000], // protect ya neck
+    'USRC19300136' : [0,26000], // Tearz
+    'USRC19300134' : [0, 80000], // Method Man
 
 }
 async function  testAction () {
@@ -121,33 +139,67 @@ async function  testAction () {
     updateSong(data)
     code = data['item']['external_ids']['isrc']
     console.log("CODE   ", code)
-    if (Object.keys(songMap).includes(code)) {
-        // console.log(`The song  `,data['item']['name'], ' is in the map' );
-        // console.log("TOTAL TIME :   " , data['item']['duration_ms'] )
-        // console.log(songMap[code][0])
-        // console.log("curr :  ", data['progress_ms'])
-        timeToSkip = songMap[code][0] - data['progress_ms']
-    //    console.log(songMap[code][1])
-        if (songMap[code][1] === undefined) {
-            console.log("TIME TO SKIP TO END :   " , timeToSkip)
-            if (timeToSkip < 0 ) {
-                testAction2()
-            }
-        }
-        else {
-            console.log("TIME TO SKIP TO END :   " , timeToSkip)
-            if (timeToSkip < 0  && timeToSkip > -5000) {
-                const response3 = await fetch("https://api.spotify.com/v1/me/player/seek?position_ms=" + songMap[code][1], {
-                    method: 'PUT',
-                    headers: {
-                         
-                        'Authorization': 'Bearer ' + accessToken,
-                    },
-                });
-            }
-        }
+    
+    if (document.cookie.includes('yes')){
+        console.log("YOU SHOULD  Think about skipping")
+                if (Object.keys(songMap).includes(code)) {
+                    // console.log(`The song  `,data['item']['name'], ' is in the map' );
+                    // console.log("TOTAL TIME :   " , data['item']['duration_ms'] )
+                    // console.log(songMap[code][0])
+                    // console.log("curr :  ", data['progress_ms'])
+                    timeToSkip = songMap[code][0] - data['progress_ms']
+                //    console.log(songMap[code][1])
+                    if (songMap[code][1] === undefined) {
+                        console.log("TIME TO SKIP TO END :   " , timeToSkip)
+                        if (timeToSkip < 0 ) {
+                            testAction2()
+                        }
+                    }
+                    else{
+                        console.log("TIME TO SKIP TO END :   " , timeToSkip)
+                        if (timeToSkip < 0  && timeToSkip > -5000) {
+                            const response3 = await fetch("https://api.spotify.com/v1/me/player/seek?position_ms=" + songMap[code][1], {
+                                method: 'PUT',
+                                headers: {
+                                    
+                                    'Authorization': 'Bearer ' + accessToken,
+                                },
+                            });
+                        }
+                    }
+            
+                }
+            } else { console.log("No skipping right now")}
+    let songBarinner = document.getElementById('songBarinner')
+    let current =data['progress_ms'] / 1000
+    let total  = data['item']['duration_ms'] /1000
 
+    let currentTime = document.getElementById('currentTime')
+    let minutes = Math.floor(current / 60);
+    let seconds = Math.floor(current - minutes * 60);
+    if (seconds < 10){
+        currentTime.innerText = minutes.toString() + ':0' + seconds.toString();
+
+    } else {
+        currentTime.innerText = minutes.toString() + ':' + seconds.toString();
     }
+    
+
+
+    let totalTime = document.getElementById('totalTime') 
+    minutes = Math.floor(total / 60);
+    seconds = Math.floor(total - minutes * 60);
+    totalTime.innerText = minutes.toString() + ':' + seconds.toString();
+
+    if (seconds < 10){
+        totalTime.innerText = minutes.toString() + ':0' + seconds.toString();
+
+    } else {
+        totalTime.innerText = minutes.toString() + ':' + seconds.toString();
+    }
+
+
+    songBarinner.style.width =  100*current/total + '%';
 }
 
 window.addEventListener('load', handleAuthResponse);
@@ -166,6 +218,13 @@ async function updateSong(data) {
     console.log(Songname)
     currentSong.innerText = Songname
 
+    console.log("DATA  ", data['item']['artists'][0]['name'])
+
+    currentArtist = document.getElementById('currentArtist')
+
+    currentArtist.innerText = data['item']['artists'][0]['name']
+
+
     const albumImages = data.item.album.images;
     if (albumImages && albumImages.length > 0) {
         const albumCoverUrl = albumImages[0].url;
@@ -173,6 +232,20 @@ async function updateSong(data) {
 
         const albumCoverDiv = document.getElementById('album-cover');
         albumCoverDiv.innerHTML = `<img src="${albumCoverUrl}" alt="Album Cover" class="album-image" />`;
+
+        const img = new Image();
+        img.crossOrigin = "Anonymous"; 
+        img.src = albumCoverUrl;
+        
+        pix = findpix(img)
+        body = document.body
+        console.log(body.style.background)
+        console.log("PIX  ", pix)
+        if (pix[0] != 0 && pix[1] != 0 && pix[2] != 0) {
+            body.style.background = 'linear-gradient(to top, black, rgb(' + pix[0] + ', '+ pix[1] + ', '+ pix[2] + '))'
+
+        }
+        
     }
 
 
@@ -357,3 +430,35 @@ async function pause() {
 
     }
 }
+
+async function skipskit() {
+    cookie = document.cookie;
+    console.log("toggling skip   ", cookie);
+    const skitbutton = document.getElementById('skipskit');
+    console.log(skitbutton)
+    if (cookie.includes('yes')) {
+        // turn off
+        document.cookie = "skip=no";
+        // 
+        skitbutton.innerText = 'Skit Skipping: Off'
+    } else {
+        //turn on
+        document.cookie = "skip=yes";
+        skitbutton.innerText = 'Skit Skipping: On'
+    }
+
+}
+
+
+
+
+
+function findpix(img) {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const pixelData = ctx.getImageData(50, 50, 1, 1).data;
+    return pixelData
+};
